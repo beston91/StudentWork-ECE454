@@ -1,0 +1,79 @@
+ECE454 Lab4 Report
+Member 1: Yuan Feng 999284876
+Member 2: Mingqi Hou 999767676
+
+
+Q1.Why is it important to #ifdef out methods and data structures that aren’t used for different versions of randtrack? 
+The goal of this lab is to implement different versions of locks. By using #ifdef to separate the methods and data structures minimizes the risk of obscure bug caused by codes meant for different type of locks interfacing with each other. Among all the code blocks surrounded by #ifdef, only those satisfies the #ifdef conditions will get compiled. In addition, #ifdef helps to eliminate unrelated codes, which is beneficial for the overall performance.
+
+Q2. How difficult was using TM compared to implementing global lock above? 
+TM is similar to global lock in terms of difficulty. Both approaches are implemented by wrapping the shared data by a lock (or a TM block). 
+
+
+Q3. Can you implement this without modifying the hash class, or without knowing its internal implementation? 
+It is impossible to implement lock without knowing the structure of the list. Without knowing the internal implementation of the hash class, it is impossible to learn the details of the critical section. Thus it is impossible to implement an effective lock.
+ 
+Q4. Can you properly implement this solely by modifying the hash class methods lookup and insert? Explain. 
+No. In addition to insert operation, the increment operation (increase element counter) involves manipulation of shared data. Thus the operation requires a lock as well. In addition, a race condition could occur when 2 threads are trying to insert the same element. After thread 1 releases the lookup lock and not yet inserts the element, thread 2 could acquire this lock and thus move to the insert as well. 
+  
+Q5. Can you implement this by adding to the hash class a new function lookup and insert if absent? Explain. 
+No. Although it solves the race condition described above, adding this function still does not solve the face that increment operation is not properly locked.   
+
+
+Q6. Can you implement it by adding new methods to the hash class lock list and unlock list? Explain. 
+Yes. It works. Functions lock list could be called before lookup,  and unlock list could be called after the increment. This solves the race condition in Q4 and prevents the race condition caused by increment operation,
+
+
+Q7. How difficult was using TM compared to implementing list locking above?
+Transactional memory is very straightforward to implement and is guaranteed to avoid race condition of shared memory. Instead of carefully planning the algorithms to avoid race condition and deadlocks when implementing list locking , developers could simply wrap the data needs to be run in parallelism with { } and let TM to take care of the rest.
+
+Q8. What are the pros and cons of this approach? 
+General idea is to use private list for each thread, then copy elements from the list of each thread to the global one. 
+Pros: This has the best performance compared to locks as thread don’t have to wait for shared data. In addition, there is no synchronization or deadlock to worry about.
+Cons: It used a significant amount of memory as the hash tables are duplicated for each thread. 
+
+Q9. For samples to skip set to 50, what is the overhead for each parallelization approach? Report this as the runtime of the parallel version with one thread divided by the runtime of the single-threaded version. 
+Single Global Lock: 10.566 / 10.376 = 1.018
+Transactional Memory: 11.236 / 10.376 = 1.082
+List-Level Locks: 10.796 / 10.376 = 1.040
+Element-Level Locks: 10.726 / 10.376 = 1.033
+Reduction Version: 10.394 / 10.376 = 1.001
+ 
+Q10. How does each approach perform as the number of threads increases? If performance gets worse for a certain case, explain why that may have happened. 
+				samples to skip = 50
+	Thread					1		2		4
+Original				10.376		N/A		N/A
+Single Global Lock: 	10.566		6.498		5.432
+Transactional Memory: 	11.236		9.602		5.518
+List-Level Locks: 		10.796		5.618		3.08
+Element-Level Locks: 	10.726		5.588		3.07
+Reduction Version: 		10.394		5.282		2.776
+
+With number of thread number increases from 1 to 4, the elapsed time of program execution decreases. Despite the trend of improving performance, the performance gain diminishes as the number of thread increases. This is caused by the synchronization overhead, which get larger as the number of thread increases. It is worth noticing that the performance gain of Reduction does not show significant diminishing as the thread number increase from 1 to 4 due to the fact that it avoids the use of locks, thus suffering from less overhead caused by synchronization. If the thread number keeps increasing, the performance will drop for all cases. For cases including Single Global Lock, Transactional Memory, List-Level Locks, Element-Level Locks, the performance drop is caused by significant overheads such as context switching, which overwhelms the performance gain brought by multithreading. In addition, coherence cache miss and false sharing could occur if there are too many threads. In terms of Reduction, increasing thread count could result in memory swap and low cache performance.
+
+Q11. Repeat the data collection above with samples to skip set to 100 and give the table. How does this change impact the results compared with when set to 50? Why?
+				samples to skip = 50
+	Thread					1		2		4
+Original				10.376		N/A		N/A
+Single Global Lock: 	10.566		6.498		5.432
+Transactional Memory: 	11.236		9.602		5.518
+List-Level Locks: 		10.796		5.618		3.08
+Element-Level Locks: 	10.726		5.588		3.07
+Reduction Version: 		10.394		5.282		2.776
+				samples to skip = 100
+	Thread					1		2		4
+Original				20.558		N/A		N/A
+Single Global Lock: 	20.804		11.372		7.444
+Transactional Memory: 	21.516		14.752		8.32
+List-Level Locks: 		20.864		10.698		5.75
+Element-Level Locks: 	20.986		10.696		5.976
+Reduction Version: 		20.594		10.39		5.552
+
+By increasing the samples to skip from 50 to 100, the total workload is doubled. Similarly, the execution time is approximately doubled as well. 
+ 
+Q12. Which approach should OptsRus ship? Keep in mind that some customers might be using multicores with more than 4 cores, while others might have only one or two cores. 
+OptsRus ship the Reduction with 4 threads approach. This approach delivers the best performance for customers using CPU with 4 or more cores. In addition, since locks are not used for synchronization, customers using CPU with 1 or 2 cores won’t experience significant performance drop as the threads won’t block each other at any time. Although this approach uses a bit more memory, its memory usage is acceptable when 4 threads are used. 
+
+
+
+
